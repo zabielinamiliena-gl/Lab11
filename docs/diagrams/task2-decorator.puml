@@ -1,0 +1,85 @@
+@startuml task2-decorator
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+title Завдання 2. Додаткові послуги до квитка (Decorator)
+
+interface ITicket <<Component>> {
+  + Description() : string
+  + Price() : int
+}
+
+class BaseTicket <<ConcreteComponent>> {
+  - passenger : string
+  - flightNumber : string
+  - journal : Journal
+  - price : int
+  + BaseTicket(passenger, flightNumber, journal)
+  + Description() : string
+  + Price() : int
+}
+
+abstract class TicketExtra <<Decorator>> {
+  # inner : ITicket
+  # journal : Journal
+  - title : string
+  - extra : int
+  + Description() : string
+  + Price() : int
+}
+
+class ExtraBaggage <<ConcreteDecorator>> {
+  + ExtraBaggage(inner, journal)
+}
+
+class Insurance <<ConcreteDecorator>> {
+  + Insurance(inner, journal)
+}
+
+class PriorityBoarding <<ConcreteDecorator>> {
+  + PriorityBoarding(inner, journal)
+}
+
+class Catering <<ConcreteDecorator>> {
+  + Catering(inner, journal)
+}
+
+class SeatChoice <<ConcreteDecorator>> {
+  + SeatChoice(inner, journal)
+}
+
+class TicketDesk <<Client>> {
+  - journal : Journal
+  + TicketDesk(journal)
+  + Sell(ticket : ITicket) : void
+}
+
+class Journal {
+  - minutes : int
+  + Write(source : string, message : string) : void
+}
+
+class Program <<Client>> {
+  + {static} Main() : void
+  - {static} Situation2() : void
+}
+
+BaseTicket ..|> ITicket
+TicketExtra ..|> ITicket
+ExtraBaggage --|> TicketExtra
+Insurance --|> TicketExtra
+PriorityBoarding --|> TicketExtra
+Catering --|> TicketExtra
+SeatChoice --|> TicketExtra
+TicketExtra "1" o-- "1" ITicket : обгортає
+TicketDesk --> ITicket : оформлює
+TicketDesk --> Journal
+BaseTicket --> Journal
+TicketExtra --> Journal
+Program ..> TicketDesk : створює
+Program ..> BaseTicket : створює
+Program ..> ExtraBaggage : створює
+Program ..> Insurance : створює
+Program ..> PriorityBoarding : створює
+Program ..> Catering : створює
+Program ..> SeatChoice : створює
+@enduml

@@ -1,0 +1,76 @@
+@startuml task1-adapter
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+title Завдання 1. Підключення метеосервісу (Adapter)
+
+interface IWeatherSource <<Target>> {
+  + Read() : WeatherData
+}
+
+class ForeignWeatherAdapter <<Adapter>> {
+  - service : ForeignWeatherService
+  - journal : Journal
+  + ForeignWeatherAdapter(service, journal)
+  + Read() : WeatherData
+}
+
+class LocalMetarAdapter <<Adapter>> {
+  - service : LocalMetarService
+  - journal : Journal
+  + LocalMetarAdapter(service, journal)
+  + Read() : WeatherData
+}
+
+class ForeignWeatherService <<Adaptee>> {
+  + Name : string
+  + TemperatureFahrenheit : double
+  + WindKnots : double
+  + VisibilityMiles : double
+  + ReportRaw(journal) : void
+}
+
+class LocalMetarService <<Adaptee>> {
+  + Name : string
+  + TemperatureC : double
+  + WindKmh : double
+  + VisibilityKm : double
+  + ReportRaw(journal) : void
+}
+
+class WeatherData {
+  + TemperatureC : double
+  + WindMs : double
+  + VisibilityM : int
+  + Text() : string
+}
+
+class FlightControlCenter <<Client>> {
+  - journal : Journal
+  + FlightControlCenter(journal)
+  + DecideTakeoff(source : IWeatherSource) : void
+}
+
+class Journal {
+  - minutes : int
+  + Write(source : string, message : string) : void
+}
+
+class Program <<Client>> {
+  + {static} Main() : void
+  - {static} Situation1() : void
+}
+
+ForeignWeatherAdapter ..|> IWeatherSource
+LocalMetarAdapter ..|> IWeatherSource
+ForeignWeatherAdapter "1" --> "1" ForeignWeatherService : обгортає
+LocalMetarAdapter "1" --> "1" LocalMetarService : обгортає
+ForeignWeatherAdapter ..> WeatherData : створює
+LocalMetarAdapter ..> WeatherData : створює
+FlightControlCenter --> IWeatherSource : читає дані
+FlightControlCenter --> Journal
+ForeignWeatherAdapter --> Journal
+LocalMetarAdapter --> Journal
+Program ..> FlightControlCenter : створює
+Program ..> ForeignWeatherAdapter : створює
+Program ..> LocalMetarAdapter : створює
+@enduml
