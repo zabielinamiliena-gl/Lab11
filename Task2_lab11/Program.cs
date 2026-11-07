@@ -20,120 +20,108 @@ namespace BukovynaAirport
         }
     }
 
-    class WeatherData
+    interface ITicket
     {
-        public double TemperatureC { get; }
-        public double WindMs { get; }
-        public int VisibilityM { get; }
-
-        public WeatherData(double temperatureC, double windMs, int visibilityM)
-        {
-            TemperatureC = temperatureC;
-            WindMs = windMs;
-            VisibilityM = visibilityM;
-        }
-
-        public string Text()
-        {
-            return TemperatureC.ToString("0.0") + " °C, вітер " + WindMs.ToString("0.0") + " м/с, видимість " + VisibilityM + " м";
-        }
+        string Description();
+        int Price();
     }
 
-    interface IWeatherSource
+    class BaseTicket : ITicket
     {
-        WeatherData Read();
-    }
-
-    class ForeignWeatherService
-    {
-        public string Name { get { return "SkyData"; } }
-
-        public double TemperatureFahrenheit { get { return 68; } }
-        public double WindKnots { get { return 10; } }
-        public double VisibilityMiles { get { return 5; } }
-
-        public void ReportRaw(Journal journal)
-        {
-            journal.Write(Name, "Вихідні дані: температура " + TemperatureFahrenheit + " °F, вітер " + WindKnots + " вузлів, видимість " + VisibilityMiles + " миль");
-        }
-    }
-
-    class LocalMetarService
-    {
-        public string Name { get { return "Буковина-Мет"; } }
-
-        public double TemperatureC { get { return 3; } }
-        public double WindKmh { get { return 50; } }
-        public double VisibilityKm { get { return 0.6; } }
-
-        public void ReportRaw(Journal journal)
-        {
-            journal.Write(Name, "Вихідні дані: температура " + TemperatureC + " °C, вітер " + WindKmh + " км/год, видимість " + VisibilityKm + " км");
-        }
-    }
-
-    class ForeignWeatherAdapter : IWeatherSource
-    {
-        private readonly ForeignWeatherService service;
+        private readonly string passenger;
+        private readonly string flightNumber;
         private readonly Journal journal;
+        private readonly int price;
 
-        public ForeignWeatherAdapter(ForeignWeatherService service, Journal journal)
+        public BaseTicket(string passenger, string flightNumber, Journal journal)
         {
-            this.service = service;
+            this.passenger = passenger;
+            this.flightNumber = flightNumber;
             this.journal = journal;
+            price = 2500;
         }
 
-        public WeatherData Read()
+        public string Description()
         {
-            service.ReportRaw(journal);
-            double celsius = (service.TemperatureFahrenheit - 32) * 5.0 / 9.0;
-            double wind = service.WindKnots * 0.514;
-            int visibility = (int)Math.Round(service.VisibilityMiles * 1609);
-            WeatherData data = new WeatherData(Math.Round(celsius, 1), Math.Round(wind, 1), visibility);
-            journal.Write("Адаптер " + service.Name, "Перетворено для центру: " + data.Text());
-            return data;
+            return "Квиток " + passenger + ", рейс " + flightNumber;
+        }
+
+        public int Price()
+        {
+            journal.Write("Базовий квиток", "Вартість " + price + " грн");
+            return price;
         }
     }
 
-    class LocalMetarAdapter : IWeatherSource
+    abstract class TicketExtra : ITicket
     {
-        private readonly LocalMetarService service;
-        private readonly Journal journal;
+        protected readonly ITicket inner;
+        protected readonly Journal journal;
+        private readonly string title;
+        private readonly int extra;
 
-        public LocalMetarAdapter(LocalMetarService service, Journal journal)
+        protected TicketExtra(ITicket inner, Journal journal, string title, int extra)
         {
-            this.service = service;
+            this.inner = inner;
             this.journal = journal;
+            this.title = title;
+            this.extra = extra;
         }
 
-        public WeatherData Read()
+        public string Description()
         {
-            service.ReportRaw(journal);
-            double wind = service.WindKmh / 3.6;
-            int visibility = (int)Math.Round(service.VisibilityKm * 1000);
-            WeatherData data = new WeatherData(Math.Round(service.TemperatureC, 1), Math.Round(wind, 1), visibility);
-            journal.Write("Адаптер " + service.Name, "Перетворено для центру: " + data.Text());
-            return data;
+            return inner.Description() + ", " + title.ToLower();
+        }
+
+        public int Price()
+        {
+            int total = inner.Price() + extra;
+            journal.Write(title, "Додає " + extra + " грн, разом " + total + " грн");
+            return total;
         }
     }
 
-    class FlightControlCenter
+    class ExtraBaggage : TicketExtra
+    {
+        public ExtraBaggage(ITicket inner, Journal journal) : base(inner, journal, "Додатковий багаж", 800) { }
+    }
+
+    class Insurance : TicketExtra
+    {
+        public Insurance(ITicket inner, Journal journal) : base(inner, journal, "Страхування", 450) { }
+    }
+
+    class PriorityBoarding : TicketExtra
+    {
+        public PriorityBoarding(ITicket inner, Journal journal) : base(inner, journal, "Пріоритетна посадка", 350) { }
+    }
+
+    class Catering : TicketExtra
+    {
+        public Catering(ITicket inner, Journal journal) : base(inner, journal, "Харчування", 200) { }
+    }
+
+    class SeatChoice : TicketExtra
+    {
+        public SeatChoice(ITicket inner, Journal journal) : base(inner, journal, "Вибір місця", 250) { }
+    }
+
+    class TicketDesk
     {
         private readonly Journal journal;
 
-        public FlightControlCenter(Journal journal)
+        public TicketDesk(Journal journal)
         {
             this.journal = journal;
         }
 
-        public void DecideTakeoff(IWeatherSource source)
+        public void Sell(ITicket ticket)
         {
-            WeatherData data = source.Read();
-            journal.Write("Центр управління", "Отримано через власний інтерфейс: " + data.Text());
-            if (data.WindMs <= 12 && data.VisibilityM >= 1000)
-                journal.Write("Центр управління", "Зліт дозволено");
-            else
-                journal.Write("Центр управління", "Зліт заборонено");
+            int price = ticket.Price();
+            journal.Write("Каса", ticket.Description() + ". До сплати " + price + " грн");
+            Console.WriteLine(ticket.Description());
+            Console.WriteLine("Вартість: " + price + " грн");
+            Console.WriteLine();
         }
     }
 
@@ -142,19 +130,27 @@ namespace BukovynaAirport
         static void Main()
         {
             Console.OutputEncoding = System.Text.Encoding.UTF8;
-            Situation1();
+            Situation2();
         }
 
-        static void Situation1()
+        static void Situation2()
         {
-            Journal journal = new Journal(8, 0);
-            FlightControlCenter center = new FlightControlCenter(journal);
+            Journal journal = new Journal(9, 0);
+            TicketDesk desk = new TicketDesk(journal);
 
-            ForeignWeatherService foreign = new ForeignWeatherService();
-            center.DecideTakeoff(new ForeignWeatherAdapter(foreign, journal));
+            ITicket first = new BaseTicket("Олена Коваль", "PS-101", journal);
+            desk.Sell(first);
 
-            LocalMetarService local = new LocalMetarService();
-            center.DecideTakeoff(new LocalMetarAdapter(local, journal));
+            first = new ExtraBaggage(first, journal);
+            first = new Insurance(first, journal);
+            first = new PriorityBoarding(first, journal);
+            desk.Sell(first);
+
+            ITicket second = new BaseTicket("Марина Іваненко", "PS-102", journal);
+            second = new Catering(second, journal);
+            second = new Catering(second, journal);
+            second = new SeatChoice(second, journal);
+            desk.Sell(second);
         }
     }
 }
