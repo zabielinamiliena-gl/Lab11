@@ -120,14 +120,12 @@ namespace AirportCheckIn
     {
         static void Main(string[] args)
         {
-            // Ініціалізація підсистем
             var docVerification = new DocumentVerificationService();
             var seatAssignment = new SeatAssignmentService();
             var baggage = new BaggageService();
             var printer = new BoardingPassPrinter();
             var borderControl = new BorderControlService();
 
-            // Ініціалізація фасаду
             var checkInFacade = new CheckInFacade(
                 docVerification, 
                 seatAssignment, 
